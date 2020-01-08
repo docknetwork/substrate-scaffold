@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# Call this script to build the executable that gets checked into git.
+
+set -ueo pipefail
+
+if [ "xLinux x86_64" -eq "x$(uname -sp)" ]; then echo wrong platform; fi
+
+dist_dir="$(realpath $(dirname $0))"
+cd $(dirname $0)/..
+
+cargo build --release
+
+cp target/release/node-template $dist_dir/vasaplatsen
