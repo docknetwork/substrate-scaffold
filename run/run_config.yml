@@ -1,0 +1,13 @@
+# List of bootstrap nodes to connect to
+bootstrap:
+  - "0.0.0.0"
+  
+# Private key, let them provide one (or we create one for them if none)
+node_key: "fake"
+
+# name, Chain to run (dev/main)
+chain: "dev"
+
+# Bool expose RPC
+expose_rpc: true
+
