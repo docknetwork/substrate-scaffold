@@ -6,8 +6,4 @@ bootstrap:
 node_key: "fake"
 
 # name, Chain to run (dev/main)
-chain: "dev"
-
-# Bool expose RPC
-expose_rpc: true
-
+chain: "local"

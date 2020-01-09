@@ -5,6 +5,10 @@
 
 from typing import Any, Callable
 import yaml
+import pathlib
+import subprocess
+import shlex
+from inspect import cleandoc
 
 
 def istype(typ) -> Callable[[Any], None]:
@@ -25,7 +29,11 @@ def islistof(inner_validate: Callable[[Any], None]) -> Callable[[Any], None]:
     def islistof_validate(obj):
         istype(list)(obj)
         for element in obj:
-            inner_validate(element)
+            r = inner_validate(element)
+            assert r is None, """
+            Validation functions should not return values. Perhaps you wrote
+            "islistof(str)" but meant "islistof(istype(str))"
+            """
     return islistof_validate
 
 
@@ -69,21 +77,38 @@ class Validate:
             setattr(self, field, val)
 
 
-class CONFIG(Validate):
+class Config(Validate):
     # List of bootstrap nodes to connect to
     bootstrap = islistof(istype(str))
     # Private key, let them provide one (or we create one for them if none)
     node_key = istype(str)
     # name, Chain to run (dev/main)
-    chain = isoneof_literal("dev", "main")
-    # Bool expose RPC
-    expose_rpc = istype(bool)
+    chain = isoneof_literal("dev", "local")
+
+
+def script(contents):
+    """
+    Run contents in interpreter indicated by shebang on first line, indentation
+    is cleaned up using magic (inspect.cleandoc) before running the script.
+    """
+    dedented = cleandoc(contents)
+    assert dedented.startswith("#!"), "shebang required"
+    interpreter = dedented.splitlines()[0][2:]
+    subprocess.run(shlex.split(interpreter), input=dedented, encoding="utf8")
 
 
 if __name__ == "__main__":
-    rawconf = yaml.safe_load(open("run_config.yml"))
-    config = CONFIG(rawconf)
-    print(config.bootstrap)
-    print(config.chain)
-    print(config.expose_rpc)
-    print(config.node_key)
+    rundir = pathlib.Path(__file__).parent
+    rawconf = yaml.safe_load(open(rundir / "run_config.yml"))
+    config = Config(rawconf)
+    command = "./vasaplatsen"
+    command += f" --chain {config.chain}"
+    if len(config.bootstrap) > 0:
+        command += f" --bootnodes {config.bootstrap}"
+    script(f"""
+    #!/bin/bash
+    set -ueo pipefail
+
+    cd {rundir}
+    {command}
+    """)
