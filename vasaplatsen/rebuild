@@ -6,8 +6,8 @@ set -ueo pipefail
 
 if [ "xLinux x86_64" -eq "x$(uname -sp)" ]; then echo wrong platform; fi
 
-dist_dir="$(realpath $(dirname $0))"
-cd $(dirname $0)/..
+dist_dir="$(realpath $(dirname $0))"/../run
+cd $(dirname $0)
 
 cargo build --release
 
