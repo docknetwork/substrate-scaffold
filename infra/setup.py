@@ -118,7 +118,7 @@ def main(config: dict):
     ec2_client = get_client(config, 'ec2')
     create_keypair(config, ec2_client, key_file_name)
 
-    # create_ec2_instance(ec2_client, config['AMI_IMAGE_ID'], config['INSTANCE_TYPE'], config['KEY_PAIR_NAME'])
+    create_ec2_instance(ec2_client, config['AMI_IMAGE_ID'], config['INSTANCE_TYPE'], config['KEY_PAIR_NAME'])
 
     print("="*80)
     input(
