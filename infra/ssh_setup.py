@@ -1,4 +1,5 @@
 import logging
+from time import sleep
 from typing import List
 
 import boto3
@@ -6,8 +7,8 @@ import paramiko as paramiko
 import yaml
 from botocore.exceptions import ClientError
 
-INSTANCE_PROFILE_NAME = 'AllowSSM'
-IAM_ROLE_NAME = 'EC2InstanceSSM'
+COMMAND_DOWNLOAD_AND_START = 'wget https://raw.githubusercontent.com/docknetwork/substrate-scaffold/master/install/download_run_dir.bash; bash download_run_dir.bash master run'
+COMMAND_KILL = "pkill vasaplatsen"
 
 
 def execute_commands_on_linux_instances(config: dict, commands: List[str], instance_ips: List[str]):
@@ -17,21 +18,24 @@ def execute_commands_on_linux_instances(config: dict, commands: List[str], insta
     :param instance_ids: a list of instance_id strings, of the instances on which to execute the command
     :return: the response from the send_command function (check the boto3 docs for ssm client.send_command() )
     """
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    # Connect/ssh to an instance
-    try:
-        # Here 'ubuntu' is user name and 'instance_ip' is public IP of EC2
-        client.connect(hostname=instance_ips[0], username=config['SSH_USER'], password=config['SSH_PASS'])
-
-        # Execute a command(cmd) after connecting/ssh to an instance
-        stdin, stdout, stderr = client.exec_command(commands[0])
-        print(stdout.read())
-
-        # close the client connection once the job is done
+    for instance_ip in instance_ips:
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(
+            hostname=instance_ip,
+            username=config['SSH_USER'],
+            password=config['SSH_PASS'],
+            look_for_keys=False
+        )
+        transport = client.get_transport()
+        for command in commands:
+            channel = transport.open_session()
+            try:
+                channel.exec_command(command)
+            except Exception as e:
+                print(e)
         client.close()
-    except Exception as e:
-        print(e)
+        sleep(5)
 
 
 def create_ec2_instance(ec2_client, image_id: str, instance_type: str, keypair_name: str):
@@ -66,19 +70,36 @@ def create_ec2_instance(ec2_client, image_id: str, instance_type: str, keypair_n
     return instance
 
 
-def main(config: dict):
-    """
-    Create an EC2 instance, download the provisioning script and run it.
-
-    :param config: dict with config.yml contents
-    """
-    key_file_name = f"{config['KEY_PAIR_NAME']}.pem"
-    ec2_client = boto3.client(
-        'ec2',
+def get_client(config, type):
+    return boto3.client(
+        type,
         region_name=config['REGION_NAME'],
         aws_access_key_id=config['ACCESS_KEY_ID'],
         aws_secret_access_key=config['SECRET_ACCESS_KEY'],
     )
+
+
+def get_resource(config, type):
+    return boto3.resource(
+        type,
+        region_name=config['REGION_NAME'],
+        aws_access_key_id=config['ACCESS_KEY_ID'],
+        aws_secret_access_key=config['SECRET_ACCESS_KEY'],
+    )
+
+
+def get_ip_of_running_instances(config):
+    ec2_resource = get_resource(config, 'ec2')
+    instance_ips = [i.public_ip_address for i in ec2_resource.instances.filter(
+        Filters=[
+            {'Name': 'instance-state-name', 'Values': ['running']},
+            {'Name': 'tag:Purpose', 'Values': ['Dockchain Test']}
+        ]
+    )]
+    return instance_ips
+
+
+def create_keypair(config, ec2_client, key_file_name):
     try:
         response = ec2_client.create_key_pair(KeyName=config['KEY_PAIR_NAME'])
         with open(key_file_name, 'w') as keyfile:
@@ -87,27 +108,32 @@ def main(config: dict):
         if not e.response['Error']['Code'] == 'InvalidKeyPair.Duplicate':
             raise
 
-    instance_info = create_ec2_instance(ec2_client, config['AMI_IMAGE_ID'], config['INSTANCE_TYPE'], config['KEY_PAIR_NAME'])
-    import pdb;pdb.set_trace()#TODO: delete this breakpoint Fausto!
-    instance_ids = [instance_info['InstanceId']]
-    instance_ips = [instance_info['InstanceIp']]
 
-    if instance_info is not None:
-        logging.info(f'Launched EC2 Instance {instance_info["InstanceId"]}')
-        logging.info(f'    VPC ID: {instance_info["VpcId"]}')
-        logging.info(f'    Private IP Address: {instance_info["PrivateIpAddress"]}')
-        logging.info(f'    Current State: {instance_info["State"]["Name"]}')
+def main(config: dict):
+    """
+    Create an EC2 instance, download the provisioning script and run it.
 
-    commands_to_run = ['echo "hello world"']
+    :param config: dict with config.yml contents
+    """
+    key_file_name = f"{config['KEY_PAIR_NAME']}.pem"
+    ec2_client = get_client(config, 'ec2')
+    create_keypair(config, ec2_client, key_file_name)
 
+    # create_ec2_instance(ec2_client, config['AMI_IMAGE_ID'], config['INSTANCE_TYPE'], config['KEY_PAIR_NAME'])
+
+    print()
+    input(
+        "Please visit the AWS console and enable inbound tcp traffic for ports 22 and 30333 on your newly created "
+        "instance(s) before hitting Enter:"
+    )
+
+    instance_ips = get_ip_of_running_instances(config)
     try:
-        responses = execute_commands_on_linux_instances(config, commands_to_run, instance_ips)
-        import pdb;
-        pdb.set_trace()  # TODO: delete this breakpoint Fausto!
+        execute_commands_on_linux_instances(config, [COMMAND_DOWNLOAD_AND_START], instance_ips)
     except Exception as e:
-        import pdb;
-        pdb.set_trace()  # TODO: delete this breakpoint Fausto!
-    print("DONE DONE DONE DONE DONE DONE DONE DONE DONE ")
+        logging.error("Something went wrong.")
+        raise
+    print(f"Successfully launched Docknetwork node(s) at: {instance_ips}")
 
 
 if __name__ == '__main__':
