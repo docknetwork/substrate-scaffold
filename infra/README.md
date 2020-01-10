@@ -5,7 +5,7 @@
 - Enter your ACCESS_KEY_ID and SECRET_ACCESS_KEY into `config.yml`.
 
 ## Running
-1. Run `python ssh_setup.py`
+1. Run `python setup.py`
 1. Wait for the script to start an ec2 instance, then visit the AWS console to enable inbound tcp traffic for ports 22 and 30333 in it like suggested by the prompt.
 1. Press Enter.
 1. Wait for the script to finish.
