@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-# This script is run on a target machine with "./run" as pwd.
-# It uses the config from run_config.yml to run a vasaplaten node.
+# This script is run on a target machine. It expects to be in the "./run"
+# directory. It uses the config from run_config.yml to run a vasaplaten node.
 
 from typing import Any, Callable
 import yaml
@@ -84,6 +84,8 @@ class Config(Validate):
     node_key = istype(str)
     # name, Chain to run (dev/main)
     chain = isoneof_literal("dev", "local")
+    # 
+    # p2p_key = None
 
 
 def script(contents):
@@ -97,18 +99,16 @@ def script(contents):
     subprocess.run(shlex.split(interpreter), input=dedented, encoding="utf8")
 
 
+def vasaplatsen(config: Config):
+    exe = pathlib.Path(__file__).parent / "vasaplatsen"
+    command = [exe, "--chain", config.chain]
+    if len(config.bootstrap) > 0:
+        command += ["--bootnodes", ",".join(config.bootstrap)]
+    subprocess.run(command)
+
+
 if __name__ == "__main__":
     rundir = pathlib.Path(__file__).parent
     rawconf = yaml.safe_load(open(rundir / "run_config.yml"))
     config = Config(rawconf)
-    command = "./vasaplatsen"
-    command += f" --chain {config.chain}"
-    if len(config.bootstrap) > 0:
-        command += f" --bootnodes {config.bootstrap}"
-    script(f"""
-    #!/bin/bash
-    set -ueo pipefail
-
-    cd {rundir}
-    {command}
-    """)
+    vasaplatsen(config)
