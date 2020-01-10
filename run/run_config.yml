@@ -3,7 +3,10 @@ bootstrap:
   - "0.0.0.0"
   
 # Private key, let them provide one (or we create one for them if none)
-node_key: "fake"
+p2p_secret_key: "9bfd959e242b89c71e7db38c815be65f7141542296b3bfb41912f2899c21a82a"
 
 # name, Chain to run (dev/main)
 chain: "local"
+
+# Authority key
+aura_secret_key: "Newcomer"

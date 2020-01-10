@@ -7,8 +7,6 @@ from typing import Any, Callable
 import yaml
 import pathlib
 import subprocess
-import shlex
-from inspect import cleandoc
 
 
 def istype(typ) -> Callable[[Any], None]:
@@ -78,25 +76,35 @@ class Validate:
 
 
 class Config(Validate):
+    """
+    Each element in this class is a named validator function. Validator
+    functions are named callables that trow adescriptive exception on
+    validation error.
+    """
+
     # List of bootstrap nodes to connect to
     bootstrap = islistof(istype(str))
-    # Private key, let them provide one (or we create one for them if none)
-    node_key = istype(str)
+
+    # Private key used in p2p, edsa hex or None
+    def p2p_secret_key(obj):
+        if obj is None:
+            return
+        if type(obj) is not str:
+            raise Exception("p2p_secret_key must be either as string or nil")
+        if len(obj) != 64 or any(
+            c not in "0123456789abcdefghijklmnopqrstuvABCDEFGHIJKLMNOPQRSTUV"
+            for c in obj
+        ):
+            raise Exception("p2p_secret_key string must be a 64 character hex "
+                            "string or nil")
+
     # name, Chain to run (dev/main)
     chain = isoneof_literal("dev", "local")
-    # 
-    # p2p_key = None
 
-
-def script(contents):
-    """
-    Run contents in interpreter indicated by shebang on first line, indentation
-    is cleaned up using magic (inspect.cleandoc) before running the script.
-    """
-    dedented = cleandoc(contents)
-    assert dedented.startswith("#!"), "shebang required"
-    interpreter = dedented.splitlines()[0][2:]
-    subprocess.run(shlex.split(interpreter), input=dedented, encoding="utf8")
+    # Private Aura key, recovery phrase or None
+    def aura_secret_key(obj):
+        if type(obj) is not str and obj is not None:
+            raise Exception("aura_secret_key must be either as string or nil")
 
 
 def vasaplatsen(config: Config):
@@ -104,6 +112,12 @@ def vasaplatsen(config: Config):
     command = [exe, "--chain", config.chain]
     if len(config.bootstrap) > 0:
         command += ["--bootnodes", ",".join(config.bootstrap)]
+    if config.p2p_secret_key is not None:
+        command += ["--node-key", config.p2p_secret_key]
+    if config.aura_secret_key is not None:
+        # TODO, start authority node
+        pass
+
     subprocess.run(command)
 
 
