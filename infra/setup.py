@@ -120,7 +120,6 @@ def main(config: dict):
 
     create_ec2_instance(ec2_client, config['AMI_IMAGE_ID'], config['INSTANCE_TYPE'], config['KEY_PAIR_NAME'])
 
-    print("="*80)
     input(
         "Please visit the AWS console and enable inbound tcp traffic for ports 22 and 30333 on your newly created "
         "instance(s) before hitting Enter:"
@@ -134,6 +133,7 @@ def main(config: dict):
     except Exception as e:
         logging.error("Something went wrong.")
         raise
+
     print(f"Successfully launched Docknetwork node(s) at: {instance_ips}")
 
 
@@ -143,4 +143,5 @@ if __name__ == '__main__':
     config = None
     with open("config.yml", 'r') as ymlfile:
         config = yaml.safe_load(ymlfile)
+
     main(config)
