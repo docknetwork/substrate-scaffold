@@ -121,7 +121,6 @@ def main(config: dict):
 
     # create_ec2_instance(ec2_client, config['AMI_IMAGE_ID'], config['INSTANCE_TYPE'], config['KEY_PAIR_NAME'])
 
-    print()
     input(
         "Please visit the AWS console and enable inbound tcp traffic for ports 22 and 30333 on your newly created "
         "instance(s) before hitting Enter:"
