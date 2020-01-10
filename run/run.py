@@ -115,8 +115,8 @@ def vasaplatsen(config: Config):
     if config.p2p_secret_key is not None:
         command += ["--node-key", config.p2p_secret_key]
     if config.aura_secret_key is not None:
+        command += ["--validator"]
         # TODO, start authority node
-        pass
 
     subprocess.run(command)
 
