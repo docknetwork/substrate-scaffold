@@ -1,5 +1,4 @@
 import logging
-from time import sleep
 from typing import List
 
 import boto3
@@ -7,7 +6,8 @@ import paramiko as paramiko
 import yaml
 from botocore.exceptions import ClientError
 
-COMMAND_DOWNLOAD_AND_START = 'wget https://raw.githubusercontent.com/docknetwork/substrate-scaffold/master/install/download_run_dir.bash; bash download_run_dir.bash master run'
+COMMAND_DOWNLOAD = 'wget https://raw.githubusercontent.com/docknetwork/substrate-scaffold/master/install/download_run_dir.bash'
+COMMAND_START = 'bash download_run_dir.bash master run'
 COMMAND_KILL = "pkill vasaplatsen"
 
 
@@ -35,7 +35,6 @@ def execute_commands_on_linux_instances(config: dict, commands: List[str], insta
             except Exception as e:
                 print(e)
         client.close()
-        sleep(5)
 
 
 def create_ec2_instance(ec2_client, image_id: str, instance_type: str, keypair_name: str):
@@ -119,16 +118,19 @@ def main(config: dict):
     ec2_client = get_client(config, 'ec2')
     create_keypair(config, ec2_client, key_file_name)
 
-    # create_ec2_instance(ec2_client, config['AMI_IMAGE_ID'], config['INSTANCE_TYPE'], config['KEY_PAIR_NAME'])
+    create_ec2_instance(ec2_client, config['AMI_IMAGE_ID'], config['INSTANCE_TYPE'], config['KEY_PAIR_NAME'])
 
+    print("="*80)
     input(
         "Please visit the AWS console and enable inbound tcp traffic for ports 22 and 30333 on your newly created "
         "instance(s) before hitting Enter:"
     )
 
     instance_ips = get_ip_of_running_instances(config)
+    if not instance_ips:
+        raise Exception('ERROR: No instances with public IPs found. Exiting.')
     try:
-        execute_commands_on_linux_instances(config, [COMMAND_DOWNLOAD_AND_START], instance_ips)
+        execute_commands_on_linux_instances(config, [COMMAND_DOWNLOAD, COMMAND_START], instance_ips)
     except Exception as e:
         logging.error("Something went wrong.")
         raise

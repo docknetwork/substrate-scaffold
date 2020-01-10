@@ -10,4 +10,4 @@
 1. Press Enter.
 1. Wait for the script to finish.
 
-Done. You now have a running Docknetwork node in the IP(s) specified by the output of the script.
+Done. You now have a running Docknetwork node in the IP specified by the output of the script.
