@@ -86,7 +86,7 @@ class Config(Validate):
                             "null")
 
 
-def insert_sk(suri, keycode):
+def insert_sk(suri, keycode, typeflag):
     """
     Add a secret keyphrase to the node keystore.
     """
@@ -94,7 +94,9 @@ def insert_sk(suri, keycode):
     PIPE = subprocess.PIPE
     start = time.time()
     timeout = 10
-    command = [subkey_exe, "insert", suri, keycode]
+    command = [subkey_exe, typeflag, "insert", suri, keycode]
+
+    assert typeflag in ["--secp256k1", "--ed25519", "--sr25519"]
 
     print("setting " + keycode + " key with command", command)
 
@@ -130,9 +132,9 @@ def vasaplatsen(config: Config):
         child = threading.Thread(target=lambda: (subprocess.run(command)))
         child.start()
         if config.aura_secret_key is not None:
-            insert_sk(config.aura_secret_key, "aura")
+            insert_sk(config.aura_secret_key, "aura", "--sr25519")
         if config.grandpa_secret_key is not None:
-            insert_sk(config.grandpa_secret_key, "gran")
+            insert_sk(config.grandpa_secret_key, "gran", "--ed25519")
         child.join()
 
 
@@ -141,4 +143,3 @@ if __name__ == "__main__":
     rawconf = yaml.safe_load(open(rundir / "run_config.yml"))
     config = Config(rawconf)
     vasaplatsen(config)
-    pass
