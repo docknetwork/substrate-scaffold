@@ -3,49 +3,12 @@
 # This script is run on a target machine. It expects to be in the "./run"
 # directory. It uses the config from run_config.yml to run a vasaplaten node.
 
-from typing import Any, Callable
 import yaml
 import pathlib
 import subprocess
-
-
-def istype(typ) -> Callable[[Any], None]:
-    "return a validation function that ensures its arg is typ"
-    def validate(obj):
-        if not type(obj) is typ:
-            raise Exception("{} has wrong type, expected {}, got {}".format(
-                obj, typ, type(obj)
-            ))
-    return validate
-
-
-def islistof(inner_validate: Callable[[Any], None]) -> Callable[[Any], None]:
-    """
-    return a validation function that ensures its arg is a list of items that
-    pass inner_validate.
-    """
-    def islistof_validate(obj):
-        istype(list)(obj)
-        for element in obj:
-            r = inner_validate(element)
-            assert r is None, """
-            Validation functions should not return values. Perhaps you wrote
-            "islistof(str)" but meant "islistof(istype(str))"
-            """
-    return islistof_validate
-
-
-def isoneof_literal(*options):
-    """
-    return a validation function that ensures its arg is one of the allowed
-    literal options
-    """
-    def isoneof_literal_validate(obj):
-        if obj not in options:
-            raise Exception("Value {} is not valid. Must be one of: {}".format(
-                obj, ", ".join(options)
-            ))
-    return isoneof_literal_validate
+import threading
+import time
+import tempfile
 
 
 class Validate:
@@ -83,42 +46,94 @@ class Config(Validate):
     """
 
     # List of bootstrap nodes to connect to
-    bootstrap = islistof(istype(str))
+    def bootstrap(obj):
+        if (
+            type(obj) is not list or
+            any(type(e) is not str for e in obj)
+        ):
+            raise Exception("bootstrap must be a list of strings")
 
     # Private key used in p2p, edsa hex or None
     def p2p_secret_key(obj):
+        allowed = "0123456789abcdefghijklmnopqrstuvABCDEFGHIJKLMNOPQRSTUV"
         if obj is None:
             return
-        if type(obj) is not str:
-            raise Exception("p2p_secret_key must be either as string or nil")
-        if len(obj) != 64 or any(
-            c not in "0123456789abcdefghijklmnopqrstuvABCDEFGHIJKLMNOPQRSTUV"
-            for c in obj
+        if (
+            type(obj) is not str or
+            len(obj) != 64 or
+            any(c not in allowed for c in obj)
         ):
             raise Exception("p2p_secret_key string must be a 64 character hex "
-                            "string or nil")
+                            "string or null")
 
-    # name, Chain to run (dev/main)
-    chain = isoneof_literal("dev", "local")
+    # name, Chain to run (dev/local)
+    def chain(obj):
+        options = ["dev", "local"]
+        if obj not in options:
+            raise Exception("chain must be one of " + str(options))
 
     # Private Aura key, recovery phrase or None
     def aura_secret_key(obj):
-        if type(obj) is not str and obj is not None:
-            raise Exception("aura_secret_key must be either as string or nil")
+        valid = type(obj) is str or obj is None
+        if not valid:
+            raise Exception("aura_secret_key must be either as string or null")
+
+    # Private Grandpa key, recovery phrase or None
+    def grandpa_secret_key(obj):
+        valid = type(obj) is str or obj is None
+        if not valid:
+            raise Exception("grandpa_secret_key must be either as string or "
+                            "null")
+
+
+def insert_sk(suri, keycode):
+    """
+    Add a secret keyphrase to the node keystore.
+    """
+    subkey_exe = pathlib.Path(__file__).parent / "subkey"
+    PIPE = subprocess.PIPE
+    start = time.time()
+    timeout = 10
+    command = [subkey_exe, "insert", suri, keycode]
+
+    print("setting " + keycode + " key with command", command)
+
+    while time.time() < timeout + start:
+        p = subprocess.run(command, stdout=PIPE, stderr=PIPE)
+        if p.stderr != b"":
+            raise Exception(p.stderr)
+        if b"ConnectionRefused" not in p.stdout and not p.stdout == b"":
+            raise Exception("unexpected output from subkey\n" + str(p.stdout))
+        if p.stdout == b"":
+            print("added key to keystore")
+            return
+    raise Exception("timeout while trying to add " +
+                    keycode + " key to keystore")
 
 
 def vasaplatsen(config: Config):
-    exe = pathlib.Path(__file__).parent / "vasaplatsen"
-    command = [exe, "--chain", config.chain]
-    if len(config.bootstrap) > 0:
-        command += ["--bootnodes", ",".join(config.bootstrap)]
-    if config.p2p_secret_key is not None:
-        command += ["--node-key", config.p2p_secret_key]
-    if config.aura_secret_key is not None:
-        command += ["--validator"]
-        # TODO, start authority node
+    with tempfile.TemporaryDirectory() as tmp:
+        vasaplatsen_exe = pathlib.Path(__file__).parent / "vasaplatsen"
+        command = [vasaplatsen_exe, "--chain", config.chain]
+        command += ["--base-path", pathlib.Path(tmp)]
+        if len(config.bootstrap) > 0:
+            command += ["--bootnodes", ",".join(config.bootstrap)]
+        if config.p2p_secret_key is not None:
+            command += ["--node-key", config.p2p_secret_key]
+        if (
+            config.aura_secret_key is not None or
+            config.grandpa_secret_key is not None
+        ):
+            command += ["--validator"]
 
-    subprocess.run(command)
+        print("starting vasaplatsen with command", command)
+        child = threading.Thread(target=lambda: (subprocess.run(command)))
+        child.start()
+        if config.aura_secret_key is not None:
+            insert_sk(config.aura_secret_key, "aura")
+        if config.grandpa_secret_key is not None:
+            insert_sk(config.grandpa_secret_key, "gran")
+        child.join()
 
 
 if __name__ == "__main__":
@@ -126,3 +141,4 @@ if __name__ == "__main__":
     rawconf = yaml.safe_load(open(rundir / "run_config.yml"))
     config = Config(rawconf)
     vasaplatsen(config)
+    pass

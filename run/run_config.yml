@@ -8,5 +8,8 @@ p2p_secret_key: null
 # name, Chain to run (dev/local)
 chain: "dev"
 
-# Authority key, null means don't attempt to produce blocks
+# Private Aura key, recovery phrase or null
 aura_secret_key: null
+
+# Private Grandpa key, recovery phrase or null
+grandpa_secret_key: null
