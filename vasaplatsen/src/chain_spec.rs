@@ -4,12 +4,12 @@ use node_template_runtime::{
     SudoConfig, SystemConfig, WASM_BINARY,
 };
 use sc_service;
+use sc_telemetry::TelemetryEndpoints;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_core::{sr25519, Pair, Public};
+use sp_core::{crypto::Ss58Codec, sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
-// Note this is the URL for the telemetry server
-//const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
+const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
 pub type ChainSpec = sc_service::ChainSpec<GenesisConfig>;
@@ -23,6 +23,8 @@ pub enum Alternative {
     Development,
     /// Whatever the current runtime is, with simple Alice/Bob auths.
     LocalTestnet,
+    /// current runtime with static authorities
+    Ved,
 }
 
 /// Helper function to generate a crypto pair from seed
@@ -47,6 +49,17 @@ pub fn get_authority_keys_from_seed(s: &str) -> (AuraId, GrandpaId) {
     (get_from_seed::<AuraId>(s), get_from_seed::<GrandpaId>(s))
 }
 
+fn pubkey_from_ss58<T: Public>(ss58: &str) -> T {
+    Ss58Codec::from_string(ss58).unwrap()
+}
+
+fn account_id_from_ss58<T: Public>(ss58: &str) -> AccountId
+where
+    AccountPublic: From<T>,
+{
+    AccountPublic::from(pubkey_from_ss58::<T>(ss58)).into_account()
+}
+
 impl Alternative {
     /// Get an actual chain config from one of the alternatives.
     pub(crate) fn load(self) -> Result<ChainSpec, String> {
@@ -64,7 +77,6 @@ impl Alternative {
                             get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
                             get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
                         ],
-                        true,
                     )
                 },
                 vec![],
@@ -97,11 +109,50 @@ impl Alternative {
                             get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
                             get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
                         ],
-                        true,
                     )
                 },
                 vec![],
                 None,
+                None,
+                None,
+                None,
+            ),
+            Alternative::Ved => ChainSpec::from_genesis(
+                "Vasaplatsen Ved Testnet",
+                "vasaplatsen_ved_testnet",
+                || {
+                    testnet_genesis(
+                        vec![
+                            (
+                                pubkey_from_ss58::<AuraId>(
+                                    "5HaurafVJ6PmLx9M5hWkV7kbZcipQ814u2hR5Z7Wc8qnQmaH",
+                                ),
+                                pubkey_from_ss58::<GrandpaId>(
+                                    "5CgranHpy1PuPQpzvREZdsDnceZ49KyCg8twUzCc7vyQgqYE",
+                                ),
+                            ),
+                            (
+                                pubkey_from_ss58::<AuraId>(
+                                    "5HauraUBhCfvtN2qTvsqtPEAyhSHzxE11xDyjhzEUkxrtDY8",
+                                ),
+                                pubkey_from_ss58::<GrandpaId>(
+                                    "5GgranquAWAHDd4CRZpkk7KPzMstv2gwxAfmRCJ2LpKmqiY9",
+                                ),
+                            ),
+                        ],
+                        account_id_from_ss58::<sr25519::Public>(
+                            "5Groot2sFDCh8Vo9G8kzGmjEK6tFJvYZSJZMQMoJXn7M1179",
+                        ),
+                        vec![account_id_from_ss58::<sr25519::Public>(
+                            "5DtressiVt3ZHgdAe3HyPrqmPAxHQSaNKkji9ACjriWYon6Z",
+                        )],
+                    )
+                },
+                vec![],
+                Some(TelemetryEndpoints::new(vec![(
+                    STAGING_TELEMETRY_URL.to_string(),
+                    1, /* Log level 1: CONSENSUS_INFO */
+                )])),
                 None,
                 None,
                 None,
@@ -111,6 +162,7 @@ impl Alternative {
 
     pub(crate) fn from(s: &str) -> Option<Self> {
         match s {
+            "ved" => Some(Alternative::Ved),
             "dev" => Some(Alternative::Development),
             "" | "local" => Some(Alternative::LocalTestnet),
             _ => None,
@@ -122,7 +174,6 @@ fn testnet_genesis(
     initial_authorities: Vec<(AuraId, GrandpaId)>,
     root_key: AccountId,
     endowed_accounts: Vec<AccountId>,
-    _enable_println: bool,
 ) -> GenesisConfig {
     GenesisConfig {
         system: Some(SystemConfig {
