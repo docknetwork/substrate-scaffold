@@ -1,8 +1,0 @@
-ACCESS_KEY_ID:
-SECRET_ACCESS_KEY:
-REGION_NAME: us-west-2
-AMI_IMAGE_ID: ami-00838560ef049c6f3
-INSTANCE_TYPE: t2.micro
-KEY_PAIR_NAME: substratekeypair
-SSH_USER: substrateuser
-SSH_PASS:
