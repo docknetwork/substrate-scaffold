@@ -1,14 +1,23 @@
 import logging
+from pprint import pprint
 from typing import List
 
 import boto3
+import click
 import paramiko as paramiko
 import yaml
 from botocore.exceptions import ClientError
 
 COMMAND_DOWNLOAD = 'wget https://raw.githubusercontent.com/docknetwork/substrate-scaffold/master/install/download_run_dir.bash'
-COMMAND_START = 'bash download_run_dir.bash master run'
+COMMAND_START = 'nohup bash download_run_dir.bash master run >/dev/null 2>&1'
 COMMAND_KILL = "pkill vasaplatsen"
+COMMAND_CLEAN = "rm -rf download_run_dir.bash* substrate-scaffold vasaplatsen"
+
+
+@click.group()
+def main() -> None:
+    """Infrastructure tools for Docknetwork node owners"""
+    pass
 
 
 def execute_commands_on_linux_instances(config: dict, commands: List[str], instance_ips: List[str]):
@@ -27,17 +36,16 @@ def execute_commands_on_linux_instances(config: dict, commands: List[str], insta
             password=config['SSH_PASS'],
             look_for_keys=False
         )
-        transport = client.get_transport()
         for command in commands:
-            channel = transport.open_session()
+            logging.info(f"Running {command} on {instance_ip}")
             try:
-                channel.exec_command(command)
+                client.exec_command(command)
             except Exception as e:
                 print(e)
         client.close()
 
 
-def create_ec2_instance(ec2_client, image_id: str, instance_type: str, keypair_name: str):
+def create_ec2_instances(ec2_client, image_id: str, instance_type: str, keypair_name: str, max_amount: int = 1):
     """Provision and launch an EC2 instance. Wait until it's  running before returning.
 
     :param ec2_client: boto3 client for EC2
@@ -47,14 +55,14 @@ def create_ec2_instance(ec2_client, image_id: str, instance_type: str, keypair_n
     :return Dictionary containing information about the instance. If error,
     """
 
-    # Provision and launch the EC2 instance
+    logging.info(f"Creating {max_amount} EC2 instances...")
     try:
         reservation = ec2_client.run_instances(
             ImageId=image_id,
             InstanceType=instance_type,
             KeyName=keypair_name,
             MinCount=1,
-            MaxCount=1,
+            MaxCount=max_amount,
             TagSpecifications=[
                 {'ResourceType': 'instance', 'Tags': [{"Key": "Purpose", "Value": "Dockchain Test"}]}
             ]
@@ -87,15 +95,17 @@ def get_resource(config, type):
     )
 
 
-def get_ip_of_running_instances(config):
+def get_running_instances(config):
+    """Get EC2 instances running as Docknetwork nodes."""
+    logging.info('Getting running instances...')
     ec2_resource = get_resource(config, 'ec2')
-    instance_ips = [i.public_ip_address for i in ec2_resource.instances.filter(
+    dock_running_instances = ec2_resource.instances.filter(
         Filters=[
             {'Name': 'instance-state-name', 'Values': ['running']},
             {'Name': 'tag:Purpose', 'Values': ['Dockchain Test']}
         ]
-    )]
-    return instance_ips
+    )
+    return dock_running_instances
 
 
 def create_keypair(config, ec2_client, key_file_name):
@@ -108,28 +118,47 @@ def create_keypair(config, ec2_client, key_file_name):
             raise
 
 
-def main(config: dict):
-    """
-    Create an EC2 instance, download the provisioning script and run it.
+def load_config_file(path: str = "config.yml") -> dict:
+    config = None
+    with open(path, 'r') as ymlfile:
+        config = yaml.safe_load(ymlfile)
+    return config
 
-    :param config: dict with config.yml contents
-    """
+
+@main.command()
+@click.argument('amount', default=1)
+def start(amount):
+    """Create EC2 instances and set them up as Docknetwork nodes."""
+    config = load_config_file()
     key_file_name = f"{config['KEY_PAIR_NAME']}.pem"
     ec2_client = get_client(config, 'ec2')
     create_keypair(config, ec2_client, key_file_name)
 
-    create_ec2_instance(ec2_client, config['AMI_IMAGE_ID'], config['INSTANCE_TYPE'], config['KEY_PAIR_NAME'])
+    create_ec2_instances(
+        ec2_client,
+        config['AMI_IMAGE_ID'],
+        config['INSTANCE_TYPE'],
+        config['KEY_PAIR_NAME'],
+        max_amount=amount
+    )
 
     input(
         "Please visit the AWS console and enable inbound tcp traffic for ports 22 and 30333 on your newly created "
         "instance(s) before hitting Enter:"
     )
 
-    instance_ips = get_ip_of_running_instances(config)
+    instance_ips = [i.public_ip_address for i in get_running_instances(config)]
     if not instance_ips:
         raise Exception('ERROR: No instances with public IPs found. Exiting.')
     try:
-        execute_commands_on_linux_instances(config, [COMMAND_DOWNLOAD, COMMAND_START], instance_ips)
+        execute_commands_on_linux_instances(
+            config,
+            [
+                COMMAND_DOWNLOAD,
+                COMMAND_START
+            ],
+            instance_ips
+        )
     except Exception as e:
         logging.error("Something went wrong.")
         raise
@@ -137,11 +166,39 @@ def main(config: dict):
     print(f"Successfully launched Docknetwork node(s) at: {instance_ips}")
 
 
+@main.command()
+def list() -> None:
+    """List my EC2 instances running as Docknetwork nodes."""
+    config = load_config_file()
+    running_instances = get_running_instances(config)
+    pprint([i.public_ip_address for i in running_instances])
+
+
+@main.command()
+def restart() -> None:
+    """Restart the Docknetwork processes inside the running instances."""
+    config = load_config_file()
+    instance_ips = [i.public_ip_address for i in get_running_instances(config)]
+    if not instance_ips:
+        raise Exception('ERROR: No instances with public IPs found. Exiting.')
+    try:
+        execute_commands_on_linux_instances(
+            config,
+            [
+                COMMAND_KILL,
+                COMMAND_CLEAN,
+                COMMAND_DOWNLOAD,
+                COMMAND_START
+            ],
+            instance_ips
+        )
+    except Exception as e:
+        logging.error("Something went wrong.")
+        raise
+
+    print(f"Successfully restarted Docknetwork node(s) at: {instance_ips}")
+
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(asctime)s: %(message)s')
-
-    config = None
-    with open("config.yml", 'r') as ymlfile:
-        config = yaml.safe_load(ymlfile)
-
-    main(config)
+    main()
