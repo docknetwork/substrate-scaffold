@@ -22,6 +22,7 @@ def main() -> None:
 
 def execute_commands_on_linux_instances(config: dict, commands: List[str], instance_ips: List[str]):
     """SSh to and run commands on remote linux instances
+
     :param config: dict with config
     :param commands: a list of strings, each one a command to execute on the instances
     :param instance_ids: a list of instance_id strings, of the instances on which to execute the command
@@ -30,23 +31,34 @@ def execute_commands_on_linux_instances(config: dict, commands: List[str], insta
     for instance_ip in instance_ips:
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(
-            hostname=instance_ip,
-            username=config['SSH_USER'],
-            password=config['SSH_PASS'],
-            look_for_keys=False
-        )
+        try:
+            logging.info(f"Connecting to {instance_ip}...")
+            client.connect(
+                hostname=instance_ip,
+                username=config['SSH_USER'],
+                password=config['SSH_PASS'],
+                look_for_keys=False
+            )
+        except Exception as e:
+            logging.error(
+                f"Could not connect to {instance_ip}. Please make sure that port 22 is open in the instance and "
+                f"the ssh credentials in config.yml are correct before retrying."
+            )
+            continue
+
         for command in commands:
-            logging.info(f"Running {command} on {instance_ip}")
+            logging.info(f"Running {command} on {instance_ip}...")
             try:
                 client.exec_command(command)
             except Exception as e:
-                print(e)
+                logging.error(f"Could not run '{command}' on '{instance_ip}'.")
+                logging.error(e)
+                continue
         client.close()
 
 
 def create_ec2_instances(ec2_client, image_id: str, instance_type: str, keypair_name: str, max_amount: int = 1):
-    """Provision and launch an EC2 instance. Wait until it's  running before returning.
+    """Launch an EC2 instance. Wait until it's running before returning.
 
     :param ec2_client: boto3 client for EC2
     :param image_id: ID of AMI to launch, such as 'ami-XXXX'
@@ -78,6 +90,7 @@ def create_ec2_instances(ec2_client, image_id: str, instance_type: str, keypair_
 
 
 def get_client(config, type):
+    """Get a boto3 client of the given type."""
     return boto3.client(
         type,
         region_name=config['REGION_NAME'],
@@ -87,6 +100,7 @@ def get_client(config, type):
 
 
 def get_resource(config, type):
+    """Get a boto3 resource of the given type."""
     return boto3.resource(
         type,
         region_name=config['REGION_NAME'],
@@ -108,7 +122,8 @@ def get_running_instances(config):
     return dock_running_instances
 
 
-def create_keypair(config, ec2_client, key_file_name):
+def create_keypair(config, ec2_client, key_file_name) -> None:
+    """Try to create a keypair with the given name. Don't fail on duplication errors."""
     try:
         response = ec2_client.create_key_pair(KeyName=config['KEY_PAIR_NAME'])
         with open(key_file_name, 'w') as keyfile:
@@ -119,6 +134,7 @@ def create_keypair(config, ec2_client, key_file_name):
 
 
 def load_config_file(path: str = "config.yml") -> dict:
+    """Load yml config file."""
     config = None
     with open(path, 'r') as ymlfile:
         config = yaml.safe_load(ymlfile)
@@ -127,7 +143,7 @@ def load_config_file(path: str = "config.yml") -> dict:
 
 @main.command()
 @click.argument('amount', default=1)
-def start(amount):
+def start(amount: int) -> None:
     """Create EC2 instances and set them up as Docknetwork nodes."""
     config = load_config_file()
     key_file_name = f"{config['KEY_PAIR_NAME']}.pem"
@@ -163,7 +179,7 @@ def start(amount):
         logging.error("Something went wrong.")
         raise
 
-    print(f"Successfully launched Docknetwork node(s) at: {instance_ips}")
+    logging.info(f"Successfully launched Docknetwork node(s) at: {instance_ips}")
 
 
 @main.command()
@@ -176,7 +192,7 @@ def list() -> None:
 
 @main.command()
 def restart() -> None:
-    """Restart the Docknetwork processes inside the running instances."""
+    """Restart the Docknetwork process inside the running instances."""
     config = load_config_file()
     instance_ips = [i.public_ip_address for i in get_running_instances(config)]
     if not instance_ips:
@@ -196,9 +212,45 @@ def restart() -> None:
         logging.error("Something went wrong.")
         raise
 
-    print(f"Successfully restarted Docknetwork node(s) at: {instance_ips}")
+
+@main.command()
+def stop() -> None:
+    """Stop the Docknetwork process and leave the EC2 instances running."""
+    config = load_config_file()
+    instance_ips = [i.public_ip_address for i in get_running_instances(config)]
+    if not instance_ips:
+        raise Exception('ERROR: No instances with public IPs found. Exiting.')
+    try:
+        execute_commands_on_linux_instances(
+            config,
+            [
+                COMMAND_KILL
+            ],
+            instance_ips
+        )
+    except Exception as e:
+        logging.error("Something went wrong.")
+        raise
+
+
+@main.command()
+def terminate() -> None:
+    """Terminate the EC2 instances created to run Docknetwork nodes."""
+    config = load_config_file()
+    instance_ids = [i.id for i in get_running_instances(config)]
+    if not instance_ids:
+        raise Exception('ERROR: No running EC2 instances found. Exiting.')
+    ec2 = get_resource(config=config, type='ec2')
+    for instance_id in instance_ids:
+        try:
+            instance = ec2.Instance(instance_id)
+            instance.terminate()
+        except Exception as e:
+            logging.error("Something went wrong.")
+            raise
 
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(asctime)s: %(message)s')
     main()
+    logging.info("Done.")
