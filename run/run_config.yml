@@ -1,0 +1,21 @@
+# List of bootstrap nodes to connect to
+bootstrap:
+  - "/ip4/34.219.111.49/tcp/30333/p2p/QmTricoBZbRr1HG6FQykEwpfqJpj2MB2bv4ATNim82k12F"
+
+# Private key only used for p2p communications. null means generate one
+p2p_secret_key: null
+
+# name, Chain to run (dev/local/ved)
+chain: "ved"
+
+# Private Aura key, recovery phrase or null
+aura_secret_key: null
+
+# Private Grandpa key, recovery phrase or null
+grandpa_secret_key: null
+
+# Where to store chain state and secret keys. null indicates a temporary directory should be used.
+chain_storage_base_dir: null
+
+# port on which to listen for rpc over http
+http_rpc_port: 9933
