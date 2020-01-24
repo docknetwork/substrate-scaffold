@@ -1,5 +1,4 @@
 import logging
-from pprint import pprint
 from typing import List
 
 import boto3
@@ -17,6 +16,7 @@ COMMAND_CLEAN = "rm -rf download_run_dir.bash* substrate-scaffold vasaplatsen"
 @click.group()
 def main() -> None:
     """Infrastructure tools for Docknetwork node owners"""
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(asctime)s: %(message)s')
     pass
 
 
@@ -67,7 +67,7 @@ def create_ec2_instances(ec2_client, image_id: str, instance_type: str, keypair_
     :return Dictionary containing information about the instance. If error,
     """
 
-    logging.info(f"Creating {max_amount} EC2 instances...")
+    logging.info(f"Creating {max_amount} EC2 instance(s)...")
     try:
         reservation = ec2_client.run_instances(
             ImageId=image_id,
@@ -83,9 +83,11 @@ def create_ec2_instances(ec2_client, image_id: str, instance_type: str, keypair_
         logging.error(e)
         raise
 
-    instance = reservation['Instances'][0]
-    waiter = ec2_client.get_waiter('instance_running')
-    waiter.wait(InstanceIds=[instance['InstanceId']])
+    for instance in reservation['Instances']:
+        waiter = ec2_client.get_waiter('instance_running')
+        waiter.wait(InstanceIds=[instance['InstanceId']])
+        logging.info(f"Successfully created EC2 instance with id '{instance['InstanceId']}'.")
+
     return instance
 
 
@@ -141,10 +143,22 @@ def load_config_file(path: str = "config.yml") -> dict:
     return config
 
 
+def print_formatted_instances(running_instances) -> None:
+    """Prints a table with Instance Number, Id and Public IP address for the given instances"""
+    BASIC_FORMAT = "{:^3} {:^20} {:^20} {:^20}"
+    headers = ['#', 'ID', 'Public IPv4', 'Launch Datetime']
+    print(BASIC_FORMAT.format(*headers))
+    print(BASIC_FORMAT.format(*["-" * len(i) for i in headers]))
+    for i, instance in enumerate(running_instances):
+        print(BASIC_FORMAT.format(
+            *[i + 1, instance.id, instance.public_ip_address, instance.launch_time.strftime("%Y/%m/%d %H:%M:%S")])
+        )
+
+
 @main.command()
 @click.argument('amount', default=1)
 def start(amount: int) -> None:
-    """Create EC2 instances and set them up as Docknetwork nodes."""
+    """Create EC2 instances and set them up as Docknetwork nodes"""
     config = load_config_file()
     key_file_name = f"{config['KEY_PAIR_NAME']}.pem"
     ec2_client = get_client(config, 'ec2')
@@ -159,8 +173,8 @@ def start(amount: int) -> None:
     )
 
     input(
-        "Please visit the AWS console and enable inbound tcp traffic for ports 22 and 30333 on your newly created "
-        "instance(s) before hitting Enter:"
+        "Please visit the AWS console and enable inbound tcp traffic from any source for ports 22 and 30333 on your "
+        "newly created instance(s) before hitting Enter:"
     )
 
     instance_ips = [i.public_ip_address for i in get_running_instances(config)]
@@ -180,19 +194,21 @@ def start(amount: int) -> None:
         raise
 
     logging.info(f"Successfully launched Docknetwork node(s) at: {instance_ips}")
+    logging.info('Done!')
 
 
 @main.command()
 def list() -> None:
-    """List my EC2 instances running as Docknetwork nodes."""
+    """List my EC2 instances running as Docknetwork nodes"""
     config = load_config_file()
     running_instances = get_running_instances(config)
-    pprint([i.public_ip_address for i in running_instances])
+    print_formatted_instances(running_instances)
+    logging.info('Done!')
 
 
 @main.command()
 def restart() -> None:
-    """Restart the Docknetwork process inside the running instances."""
+    """Restart the Docknetwork process inside the running instances"""
     config = load_config_file()
     instance_ips = [i.public_ip_address for i in get_running_instances(config)]
     if not instance_ips:
@@ -211,11 +227,12 @@ def restart() -> None:
     except Exception as e:
         logging.error("Something went wrong.")
         raise
+    logging.info('Done!')
 
 
 @main.command()
 def stop() -> None:
-    """Stop the Docknetwork process and leave the EC2 instances running."""
+    """Stop the Docknetwork process & leave the EC2 instances running"""
     config = load_config_file()
     instance_ips = [i.public_ip_address for i in get_running_instances(config)]
     if not instance_ips:
@@ -231,11 +248,12 @@ def stop() -> None:
     except Exception as e:
         logging.error("Something went wrong.")
         raise
+    logging.info('Done!')
 
 
 @main.command()
 def terminate() -> None:
-    """Terminate the EC2 instances created to run Docknetwork nodes."""
+    """Terminate the EC2 instances created to run Docknetwork nodes"""
     config = load_config_file()
     instance_ids = [i.id for i in get_running_instances(config)]
     if not instance_ids:
@@ -243,14 +261,14 @@ def terminate() -> None:
     ec2 = get_resource(config=config, type='ec2')
     for instance_id in instance_ids:
         try:
+            logging.info(f"Terminating {instance_id}...")
             instance = ec2.Instance(instance_id)
             instance.terminate()
         except Exception as e:
             logging.error("Something went wrong.")
             raise
+    logging.info('Done!')
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(asctime)s: %(message)s')
     main()
-    logging.info("Done.")
