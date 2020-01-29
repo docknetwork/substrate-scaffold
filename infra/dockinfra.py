@@ -58,7 +58,7 @@ def execute_commands_on_linux_instances(config: dict, commands: List[str], insta
         client.close()
 
 
-def create_ec2_instances(ec2_client, image_id: str, instance_type: str, keypair_name: str, max_amount: int = 1):
+def create_ec2_instances(ec2_client, image_id: str, instance_type: str, keypair_name: str, max_count: int = 1):
     """Launch an EC2 instance. Wait until it's running before returning.
 
     :param ec2_client: boto3 client for EC2
@@ -68,14 +68,14 @@ def create_ec2_instances(ec2_client, image_id: str, instance_type: str, keypair_
     :return Dictionary containing information about the instance. If error,
     """
 
-    logging.info(f"Creating {max_amount} EC2 instance(s)...")
+    logging.info(f"Creating {max_count} EC2 instance(s)...")
     try:
         reservation = ec2_client.run_instances(
             ImageId=image_id,
             InstanceType=instance_type,
             KeyName=keypair_name,
             MinCount=1,
-            MaxCount=max_amount,
+            MaxCount=max_count,
             TagSpecifications=[
                 {
                     'ResourceType': 'instance', 'Tags':
@@ -163,8 +163,8 @@ def print_formatted_instances(running_instances) -> None:
 
 
 @main.command()
-@click.argument('amount', default=1)
-def start(amount: int) -> None:
+@click.argument('count', default=1)
+def start(count: int) -> None:
     """Create EC2 instances and set them up as Docknetwork nodes"""
     config = load_config_file()
     key_file_name = f"{config['KEY_PAIR_NAME']}.pem"
@@ -176,7 +176,7 @@ def start(amount: int) -> None:
         config['AMI_IMAGE_ID'],
         config['INSTANCE_TYPE'],
         config['KEY_PAIR_NAME'],
-        max_amount=amount
+        max_count=count
     )
 
     input(
