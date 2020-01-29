@@ -1,4 +1,5 @@
 import logging
+import uuid
 from typing import List
 
 import boto3
@@ -76,7 +77,13 @@ def create_ec2_instances(ec2_client, image_id: str, instance_type: str, keypair_
             MinCount=1,
             MaxCount=max_amount,
             TagSpecifications=[
-                {'ResourceType': 'instance', 'Tags': [{"Key": "Purpose", "Value": "Dockchain Test"}]}
+                {
+                    'ResourceType': 'instance', 'Tags':
+                    [
+                        {"Key": "Name", "Value": f"Dockchain - {str(uuid.uuid4())}"},
+                        {"Key": "Purpose", "Value": "Dockchain Test"}
+                    ]
+                }
             ]
         )
     except ClientError as e:
