@@ -2,22 +2,23 @@
 Tools to create and manage Docknetwork nodes hosted at AWS EC2 instances.
 
 ## Table of contents
-1. [Prerequisites](#Prerequisites)
-    1. [Locally](#Locally)
-    1. [AWS](#AWS)
-1. [Installation](#Installation)
-1. [Running](#Running)
+1. [Prerequisites](#prerequisites)
+    1. [Locally](#locally)
+    1. [AWS](#aws-console)
+1. [Installation](#installation)
+1. [Running](#running)
     1. [Start Docknetwork Nodes](#start-docknetwork-nodes)
     1. [List your Docknetwork nodes](#list-your-docknetwork-nodes)
     1. [Restart the Docknetwork process](#restart-the-docknetwork-process)
     1. [Stop your Docknetwork nodes](#stop-your-docknetwork-nodes)
     1. [Terminate your EC2 instances](#terminate-your-ec2-instances)
+1. [Troubleshooting](#troubleshooting)
 
 
 ## Prerequisites
 Before installing and running these scripts there are a few things to setup both at your [AWS Console](https://console.aws.amazon.com/) and your local machine.
 
-### AWS
+### AWS Console
 - Get a IAM user with `AmazonEC2FullAccess` permissions and programatic access enabled. Please make sure to download your `ACCESS_KEY_ID` and `SECRET_ACCESS_KEY` from the AWS Console. [Here's a quick tutorial on how to do this](https://www.teckriders.com/2019/05/create-aws-iam-user-with-programmatic-access/)
 - Make sure your AWS user allows you to edit EC2 instances' security groups and create (or find) a security group where inbound and outbound tcp traffic is enabled from/to anywhere for ports 22 and 30333. [Here's an example](https://docs.aws.amazon.com/efs/latest/ug/gs-step-one-create-ec2-resources.html), jump right to step 9 there. 
 
@@ -60,7 +61,7 @@ To get further help on each of these commands you can run `dockinfra [COMMAND] -
 
 ### Start Docknetwork nodes
 `start` is the command used to create EC2 instances and set them up as Docknetwork nodes.
-There's an optional argument called `AMOUNT` which, as its name implies, lets you choose the amount of EC2 instances to start. If omitted, `AMOUNT` will default to 1.
+There's an optional argument called `COUNT` which, as its name implies, lets you choose the number of EC2 instances to start. If omitted, `COUNT` will default to 1.
 Let's see an example where we want to start two Docknetwork nodes, each running in its own EC2 instance: 
 - Run `dockinfra start 2`:
 ```bash
@@ -116,7 +117,7 @@ INFO: 2020-01-24 20:15:43,019: Done!
 By watching [Telemetry](https://telemetry.polkadot.io/#/Vasaplatsen%20Ved%20Testnet) you can see your old nodes dissapear from the network and then new ones appear once the above command finishes running.
  
 ### Stop your Docknetwork nodes
-The `stop` command lets you stop the Docknetwork process in your running EC2 instances while leaving the EC2 instances running_. This can be useful if you want to stop your nodes for a short time but can't or don't want to do the required setup steps in your AWS console (in case you want to restart the nodes later):
+The `stop` command lets you stop the Docknetwork process in your running EC2 instances while leaving the EC2 instances running. This can be useful if you want to stop your nodes for a short time but can't or don't want to do the required setup steps in your AWS console (in case you want to restart the nodes later):
 ```bash
 dockinfra stop
 INFO: 2020-01-24 20:26:26,644: Getting running instances...
@@ -140,3 +141,14 @@ INFO: 2020-01-24 20:29:11,047: Terminating i-02116890edec07dd...
 INFO: 2020-01-24 20:29:11,047: Done
 ```
 
+##Troubleshooting
+- **Q: I ran `start` but the script gets stuck at `Connecting to ...` before eventually showing `Could not connect to ...`** 
+  - A:  Please make sure that port 22 is open in the instance(s) and the ssh credentials in `config.yml` are correct and give it a new try. You may want to run `terminate` before trying again.
+- **Q: I ran `start` but I don't see my nodes in Telemetry** 
+  - A: Your nodes probably didn't finish the setup steps from `start`. Yo need to run `terminate` to clean your environment then try running `start` again and following all the steps.
+- **Q: I ran `start` and I used to be able to see my nodes in Telemetry, but now they're gone** 
+  - A: Your nodes probably became unresponsive. Try using `restart`.
+- **Q: My nodes don't connect to other Docknetwork nodes** 
+  - A: Please check your AWS console and make sure that inbound and outbound tcp traffic is enabled to/from anywhere in port 30333 of your EC2 instances. You may want to run `restart` afterwards.
+  
+For any further questions feel free to [contact us](https://dock.io/) or open a ticket.
