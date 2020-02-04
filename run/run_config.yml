@@ -1,6 +1,7 @@
 # List of bootstrap nodes to connect to
 bootstrap:
-  - "/ip4/34.219.111.49/tcp/30333/p2p/QmTricoBZbRr1HG6FQykEwpfqJpj2MB2bv4ATNim82k12F"
+  - "/dns4/vasaplatsen.thum.pw/tcp/30333/p2p/QmTricoBZbRr1HG6FQykEwpfqJpj2MB2bv4ATNim82k12F"
+  - "/ip4/54.203.85.250/tcp/30333/p2p/QmTricoBZbRr1HG6FQykEwpfqJpj2MB2bv4ATNim82k12F"
 
 # Private key only used for p2p communications. null means generate one
 p2p_secret_key: null
