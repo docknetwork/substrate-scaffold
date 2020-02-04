@@ -13,7 +13,7 @@ for cloud deployment on
 - [ ] Azure  
 - [ ] TBD
 
-<<<<<<< HEAD
+
 # Why 
 By compiling the binary ourselves we allow the user to have a better experience. The downside is that we need to compile for all the platforms we want to support. Luckily for now we only plan to support Ubuntu 18.04.
  
@@ -44,4 +44,3 @@ for the following os'
 - [ ] Infra script to create, manage, and teardown deployment instances
 - [ ] Install script that downloads and installs the Dockchain binary in a running machine
 - [ ] Binary for Ubuntu 18.04
->>>>>>> 89cab7e4217e2263ea369aa53cbe54db380d84e8
