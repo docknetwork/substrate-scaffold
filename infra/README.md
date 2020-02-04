@@ -3,8 +3,8 @@ Tools to create and manage Docknetwork nodes hosted at AWS EC2 instances.
 
 ## Table of contents
 1. [Prerequisites](#prerequisites)
+    1. [AWS Console](#aws-console)
     1. [Locally](#locally)
-    1. [AWS](#aws-console)
 1. [Installation](#installation)
 1. [Running](#running)
     1. [Start Docknetwork Nodes](#start-docknetwork-nodes)
@@ -20,7 +20,7 @@ Before installing and running these scripts there are a few things to setup both
 
 ### AWS Console
 - Get a IAM user with `AmazonEC2FullAccess` permissions and programatic access enabled. Please make sure to download your `ACCESS_KEY_ID` and `SECRET_ACCESS_KEY` from the AWS Console. [Here's a quick tutorial on how to do this](https://www.teckriders.com/2019/05/create-aws-iam-user-with-programmatic-access/)
-- Make sure your AWS user allows you to edit EC2 instances' security groups and create (or find) a security group where inbound and outbound tcp traffic is enabled from/to anywhere for ports 22 and 30333. [Here's an example](https://docs.aws.amazon.com/efs/latest/ug/gs-step-one-create-ec2-resources.html), jump right to step 9 there. 
+- Make sure your AWS user allows you to edit EC2 instances' security groups and create (or find) a security group where inbound and outbound tcp traffic is enabled from/to anywhere for ports 22 and 30333. [Here's an example](docs/security_group.md) 
 
 ### Locally
 Make sure your computer has:
@@ -71,7 +71,7 @@ INFO: 2020-01-24 18:59:56,405: Successfully created EC2 instance with id 'i-01fd
 INFO: 2020-01-24 18:59:56,704: Successfully created EC2 instance with id 'i-02116890edec07dd0'.
 Please visit the AWS console and enable inbound tcp traffic from any source for ports 22 and 30333 on your newly created instance(s) before hitting Enter:
 ```
-- At this point the script is prompting you to visit the AWS console to enable inbound tcp traffic from all sources for ports 22 and 30333. This is needed to allow the script to ssh into each instance, and to allow the nodes to connect to each other. If you're not sure how to do it [read from step 9 in this link](https://docs.aws.amazon.com/efs/latest/ug/gs-step-one-create-ec2-resources.html).
+- At this point the script is prompting you to visit the AWS console to enable inbound tcp traffic from all sources for ports 22 and 30333. This is needed to allow the script to ssh into each instance, and to allow the nodes to connect to each other. If you're not sure how to do it [here's an example](docs/security_group.md).
 - Press Enter and wait for the script to finish:
 ```bash
 INFO: 2020-01-24 19:01:20,869: Getting running instances...
