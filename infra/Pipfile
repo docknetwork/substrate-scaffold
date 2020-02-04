@@ -1,0 +1,15 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+
+[packages]
+awscli = "==1.16.312"
+boto3 = "==1.10.48"
+click = "*"
+paramiko = "*"
+
+[requires]
+python_version = "3.6"
