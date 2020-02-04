@@ -1,13 +1,13 @@
 use grandpa_primitives::AuthorityId as GrandpaId;
-use node_template_runtime::{
-    AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, IndicesConfig, Signature,
-    SudoConfig, SystemConfig, WASM_BINARY,
-};
 use sc_service;
 use sc_telemetry::TelemetryEndpoints;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::Ss58Codec, sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
+use vasaplatsen_runtime::{
+    AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, IndicesConfig, Signature,
+    SudoConfig, SystemConfig, WASM_BINARY,
+};
 
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 

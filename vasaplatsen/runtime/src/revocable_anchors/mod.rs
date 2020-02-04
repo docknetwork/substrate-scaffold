@@ -61,7 +61,7 @@ decl_storage! {
         /// Scoping Anchors to the parties with revocation permission prevents frontrunning
         /// attacks.
         /// When a party proves their membership in "Administrators", they may revoke this anchor.
-        Anchors: map (
+        pub Anchors: map (
             MerkleRoot<T::AccountId, T::TreeHashOut>, // Administrators
             MerkleRoot<Document, T::TreeHashOut>
         ) => Option<Revokable<T::BlockNumber>>;
@@ -75,7 +75,7 @@ decl_storage! {
         /// If `current_time() == suspension_end`, then suspension is still active.
         /// For example, if `current_time() == u64::max() == suspension_end`, the leaf is still
         /// considered suspended.
-        SuspendedLeaves: map (
+        pub SuspendedLeaves: map (
             MerkleRoot<T::AccountId, T::TreeHashOut>, // Administrators
             Hashed<Document, T::TreeHashOut>
         ) => Option<UnixTimeSeconds>;
@@ -134,7 +134,7 @@ decl_module! {
         ///
         /// The presence of a suspension in chain-state indicates that a member of the `admins`
         /// did suspend the 'leaf' until suspend_end.
-        pub fn suspend_leaf(
+        fn suspend_leaf(
             origin,
             admins: MerkleRoot<T::AccountId, T::TreeHashOut>,
             leaf: Hashed<Document, T::TreeHashOut>,

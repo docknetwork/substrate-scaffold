@@ -1,7 +1,6 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
 use grandpa::{self, FinalityProofProvider as GrandpaFinalityProofProvider};
-use node_template_runtime::{self, opaque::Block, GenesisConfig, RuntimeApi};
 use sc_basic_authority;
 use sc_client::LongestChain;
 use sc_executor::native_executor_instance;
@@ -12,12 +11,13 @@ use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
 use sp_inherents::InherentDataProviders;
 use std::sync::Arc;
 use std::time::Duration;
+use vasaplatsen_runtime::{self, opaque::Block, GenesisConfig, RuntimeApi};
 
 // Our native executor instance.
 native_executor_instance!(
 	pub Executor,
-	node_template_runtime::api::dispatch,
-	node_template_runtime::native_version,
+	vasaplatsen_runtime::api::dispatch,
+	vasaplatsen_runtime::native_version,
 );
 
 construct_simple_protocol! {
@@ -35,8 +35,8 @@ macro_rules! new_full_start {
         let inherent_data_providers = sp_inherents::InherentDataProviders::new();
 
         let builder = sc_service::ServiceBuilder::new_full::<
-            node_template_runtime::opaque::Block,
-            node_template_runtime::RuntimeApi,
+            vasaplatsen_runtime::opaque::Block,
+            vasaplatsen_runtime::RuntimeApi,
             crate::service::Executor,
         >($config)?
         .with_select_chain(|_config, backend| Ok(sc_client::LongestChain::new(backend.clone())))?
@@ -55,7 +55,7 @@ macro_rules! new_full_start {
                 .ok_or_else(|| sc_service::Error::SelectChainRequired)?;
 
             let (grandpa_block_import, grandpa_link) =
-                grandpa::block_import::<_, _, _, node_template_runtime::RuntimeApi, _>(
+                grandpa::block_import::<_, _, _, vasaplatsen_runtime::RuntimeApi, _>(
                     client.clone(),
                     &*client,
                     select_chain,

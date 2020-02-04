@@ -29,14 +29,17 @@ sp-consensus = "0.8"
 grandpa = { version = "2.0.0", package = "sc-finality-grandpa" }
 grandpa-primitives = { version = "2.0.0", package = "sp-finality-grandpa" }
 sc-client = "2.0.0"
-node-template-runtime = "2.0.0"
 sp-runtime = "2.0.0"
 sc-basic-authority = "2.0.0"
 sc-telemetry = "2.0.0"
+vasaplatsen-runtime = { path = "runtime" }
 
 [build-dependencies]
 vergen = "3.0.4"
 build-script-utils = { version = "2.0.0", package = "substrate-build-script-utils" }
+
+[workspace]
+members = ["runtime"]
 
 [patch.crates-io]
 sc-client = { git = "https://github.com/paritytech/substrate.git", rev = "6e0a4877afbe2309e106" }
