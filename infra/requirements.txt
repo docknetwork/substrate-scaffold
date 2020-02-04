@@ -1,4 +1,0 @@
-awscli==1.16.312
-boto3==1.10.48
-Click==7.0
-paramiko==2.7.1

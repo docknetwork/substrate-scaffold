@@ -147,8 +147,8 @@ def vasaplatsen(config: Config):
         command = [vasaplatsen_exe, "--chain", config.chain]
         command += ["--base-path", base_storage_path]
         command += ["--rpc-port", str(config.http_rpc_port)]
-        if len(config.bootstrap) > 0:
-            command += ["--bootnodes", ",".join(config.bootstrap)]
+        for nodeaddr in config.bootstrap:
+            command += ["--bootnodes", nodeaddr]
         if config.p2p_secret_key is not None:
             command += ["--node-key", config.p2p_secret_key]
         if (

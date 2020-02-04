@@ -39,6 +39,12 @@ Installation is not necessary, but it helps with environment setup and makes the
 Done, your console is now able to use the command `dockinfra`.
 
 ## Running
+<<<<<<< HEAD
+1. Run `pipenv run ./dockinfra.py` to read the help.
+1. Wait for the script to start an ec2 instance, then visit the AWS console to enable inbound tcp traffic for ports 22 and 30333 in it like suggested by the prompt.
+1. Press Enter.
+1. Wait for the script to finish.
+=======
 Running the script is as easy opening a console and running `dockinfra`. By running it without any other arguments you will get a help message like:
 ```bash
 Usage: dockinfra [OPTIONS] COMMAND [ARGS]...
@@ -140,6 +146,7 @@ INFO: 2020-01-24 20:29:11,047: Terminating i-01fd8802fadd5c397...
 INFO: 2020-01-24 20:29:11,047: Terminating i-02116890edec07dd...
 INFO: 2020-01-24 20:29:11,047: Done
 ```
+>>>>>>> master
 
 ##Troubleshooting
 - **Q: I ran `start` but the script gets stuck at `Connecting to ...` before eventually showing `Could not connect to ...`** 
