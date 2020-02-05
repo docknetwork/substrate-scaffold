@@ -1,4 +1,17 @@
 {
-  "MerkleRoot": "Hash",
-  "Hashed": "Hash"
+  "MerkleRoot": "[u8; 32]",
+  "Hashed": "[u8; 32]",
+  "Revokable": {
+    "_enum": {
+      "NotRevoked": "BlockNumber",
+      "Revoked": null
+    }
+  },
+  "ProofElement": {
+    "_enum": {
+      "Left": "[u8; 32]",
+      "Right": "[u8; 32]"
+    }
+  },
+  "UnixTimeSeconds": "u64"
 }
